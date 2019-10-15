@@ -1830,6 +1830,7 @@ prepare_new_bootloader_link (OstreeSysroot  *sysroot,
 /* Update the /boot/loader symlink to point to /boot/loader.$new_bootversion */
 static gboolean
 swap_bootloader (OstreeSysroot  *sysroot,
+                 OstreeBootloader *bootloader,
                  int             current_bootversion,
                  int             new_bootversion,
                  GCancellable   *cancellable,
@@ -1862,6 +1863,15 @@ swap_bootloader (OstreeSysroot  *sysroot,
    */
   if (fsync (boot_dfd) != 0)
     return glnx_throw_errno_prefix (error, "fsync(boot)");
+
+  /* TODO: In the future also execute this automatically via a systemd unit
+   * if we detect it's necessary.
+   **/
+  if (bootloader)
+    {
+      if (!_ostree_bootloader_post_bls_sync (bootloader, cancellable, error))
+        return FALSE;
+    }
 
   return TRUE;
 }
@@ -2129,7 +2139,7 @@ write_deployments_bootswap (OstreeSysroot     *self,
   if (!full_system_sync (self, out_syncstats, cancellable, error))
     return FALSE;
 
-  if (!swap_bootloader (self, self->bootversion, new_bootversion,
+  if (!swap_bootloader (self, bootloader, self->bootversion, new_bootversion,
                         cancellable, error))
     return FALSE;
 
